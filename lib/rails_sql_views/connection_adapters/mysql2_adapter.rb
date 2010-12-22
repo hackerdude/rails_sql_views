@@ -1,6 +1,6 @@
 module RailsSqlViews
   module ConnectionAdapters
-    module MysqlAdapter
+    module Mysql2Adapter
       def self.included(base)
         if base.private_method_defined?(:supports_views?)
           base.send(:public, :supports_views?)
@@ -12,12 +12,6 @@ module RailsSqlViews
         true
       end
       
-      def tables_with_views_included(name = nil)
-        tables = []
-        execute("SHOW FULL TABLES WHERE TABLE_TYPE='BASE TABLE' OR TABLE_TYPE = 'VIEW'").each{|row| tables << row[0] }
-        tables
-      end
-
       def base_tables(name = nil) #:nodoc:
         tables = []
         execute("SHOW FULL TABLES WHERE TABLE_TYPE='BASE TABLE'").each{|row| tables << row[0]}
@@ -61,7 +55,7 @@ module RailsSqlViews
       
       private
       def convert_statement(s)
-        s.gsub(/.* AS (select .*)/, '\1').gsub(/#{quote_table_name(ActiveRecord::Base.configurations[Rails.env]["database"])}\./, '')
+        s.gsub!(/.* AS (select .*)/, '\1')
       end
     end
   end

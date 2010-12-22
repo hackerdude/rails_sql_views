@@ -3,12 +3,24 @@ require 'active_record/schema_dumper'
 
 class SchemaDumperTest < Test::Unit::TestCase
   def setup
-    ActiveRecord::Base.connection.execute('drop view if exists v_people')
-    ActiveRecord::Base.connection.execute('drop view if exists v_profile')
+    teardown
   end
   def teardown
-    ActiveRecord::Base.connection.execute('drop view if exists v_people')
-    ActiveRecord::Base.connection.execute('drop view if exists v_profile')
+    ['V_PEOPLE', 'V_PROFILE'].each do |view|
+      if ActiveRecord::Base.connection.adapter_name == 'OracleEnhanced'
+        ActiveRecord::Base.connection.execute("
+          DECLARE
+            CURSOR C1 is SELECT view_name FROM user_views where view_name = '#{view}';
+          BEGIN
+            FOR I IN C1 LOOP
+              EXECUTE IMMEDIATE 'DROP VIEW '||I.view_name||'';
+            END LOOP;
+          END;
+        ");
+      else
+        ActiveRecord::Base.connection.execute("drop view if exists #{view}")
+      end
+    end
   end
   def test_view
     create_people_view
@@ -38,6 +50,12 @@ class SchemaDumperTest < Test::Unit::TestCase
     end
     
     assert_dump_and_load_succeed
+  end
+  def test_view_creation_order
+    ActiveRecord::SchemaDumper.view_creation_order << :v_people
+    create_people_view
+    assert_dump_and_load_succeed
+    ActiveRecord::SchemaDumper.view_creation_order.pop
   end
   def test_symbol_ignore
     ActiveRecord::SchemaDumper.ignore_views << :v_people
